@@ -28,6 +28,7 @@ export async function runStartupChecks() {
   const result = {
     storage: false,
     ffmpeg: false,
+    ffprobe: false,
     deepFilter: false,
     uploadLimit: config.maxFileSizeMb > 0,
   };
@@ -44,11 +45,16 @@ export async function runStartupChecks() {
     );
   }
 
-  const [ffmpeg, deepFilter] = await Promise.all([
+  const [ffmpeg, ffprobe, deepFilter] = await Promise.all([
     verifyCommand(
       config.ffmpegPath,
       ["-version"],
       "Instale o FFmpeg com: winget install Gyan.FFmpeg",
+    ),
+    verifyCommand(
+      config.ffprobePath,
+      ["-version"],
+      "Instale o FFmpeg/FFprobe com: winget install Gyan.FFmpeg",
     ),
     verifyCommand(
       config.deepFilterCommand,
@@ -58,6 +64,7 @@ export async function runStartupChecks() {
   ]);
 
   result.ffmpeg = ffmpeg.available;
+  result.ffprobe = ffprobe.available;
   result.deepFilter = deepFilter.available;
 
   logger.info(

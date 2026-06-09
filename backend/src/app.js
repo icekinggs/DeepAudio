@@ -32,6 +32,7 @@ export function createApp(dependencyHealth) {
       status: healthy ? "ok" : "degraded",
       dependencies: dependencyHealth,
       maxFileSizeMb: config.maxFileSizeMb,
+      maxAudioDurationSeconds: config.maxAudioDurationSeconds,
     });
   });
 
@@ -46,7 +47,9 @@ export function createApp(dependencyHealth) {
     if (
       request.method === "POST" &&
       request.path === "/upload" &&
-      (!dependencyHealth.ffmpeg || !dependencyHealth.deepFilter)
+      (!dependencyHealth.ffmpeg ||
+        !dependencyHealth.ffprobe ||
+        !dependencyHealth.deepFilter)
     ) {
       response.status(503).json({
         message:

@@ -72,7 +72,12 @@ audioRouter.post("/upload", (request, response, next) => {
       });
 
       setImmediate(() => {
-        processAudio(record);
+        processAudio(record).catch((processingError) => {
+          logger.error(
+            { err: processingError, processingId: record.id },
+            "Erro inesperado no processamento em background",
+          );
+        });
       });
     } catch (recordError) {
       await fs.rm(request.file.path, { force: true }).catch(() => {});
