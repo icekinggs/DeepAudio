@@ -6,6 +6,10 @@ import pinoHttp from "pino-http";
 import { config } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import {
+  requireAccessToken,
+  uploadRateLimiter,
+} from "./middleware/security.js";
+import {
   audioRouter,
   handleUploadError,
 } from "./routes/audioRoutes.js";
@@ -17,10 +21,12 @@ export function createApp(dependencyHealth) {
   const app = express();
 
   app.disable("x-powered-by");
+  app.set("trust proxy", true);
   app.use(
     cors({
       origin: config.corsOrigin.split(",").map((origin) => origin.trim()),
-      methods: ["GET", "POST"],
+      methods: ["GET", "POST", "DELETE"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-DeepAudio-Token"],
     }),
   );
   app.use(express.json({ limit: "64kb" }));
@@ -58,6 +64,8 @@ export function createApp(dependencyHealth) {
     next();
   });
 
+  app.use("/api/audio", requireAccessToken);
+  app.use("/api/audio/upload", uploadRateLimiter);
   app.use("/api/audio", audioRouter);
   app.use(handleUploadError);
 

@@ -1,24 +1,20 @@
 import { Check, Circle, LoaderCircle, Waves } from "lucide-react";
 
 const steps = [
-  { key: "uploading", label: "Enviando áudio" },
-  {
-    key: "converting",
-    label: "Convertendo para formato compatível",
-  },
-  {
-    key: "processing",
-    label: "Removendo ruído com inteligência artificial",
-  },
+  { key: "uploading", label: "Enviando audio" },
+  { key: "queued", label: "Aguardando na fila" },
+  { key: "converting", label: "Convertendo para formato compativel" },
+  { key: "processing", label: "Removendo ruido com inteligencia artificial" },
   { key: "completed", label: "Finalizado" },
 ];
 
 const statusOrder = {
   uploading: 0,
+  queued: 1,
   uploaded: 1,
-  converting: 1,
-  processing: 2,
-  completed: 3,
+  converting: 2,
+  processing: 3,
+  completed: 4,
 };
 
 export function ProgressPanel({ status, uploadProgress, fileName }) {
@@ -31,7 +27,7 @@ export function ProgressPanel({ status, uploadProgress, fileName }) {
         <Waves size={35} />
       </div>
       <div className="eyebrow">Processando arquivo</div>
-      <h1>Melhorando seu áudio</h1>
+      <h1>Melhorando seu audio</h1>
       <p className="lead progress-filename">{fileName}</p>
 
       <div className="steps">
@@ -58,7 +54,10 @@ export function ProgressPanel({ status, uploadProgress, fileName }) {
               <span className="step__text">
                 <strong>{step.label}</strong>
                 {step.key === "uploading" && status === "uploading" && (
-                  <small>{uploadProgress}% concluído</small>
+                  <small>{uploadProgress}% concluido</small>
+                )}
+                {step.key === "queued" && status === "queued" && (
+                  <small>O servidor processa um audio por vez</small>
                 )}
               </span>
             </div>
@@ -71,13 +70,13 @@ export function ProgressPanel({ status, uploadProgress, fileName }) {
           style={{
             width:
               status === "uploading"
-                ? `${Math.max(uploadProgress * 0.25, 4)}%`
-                : `${Math.max((activeIndex + 1) * 25, 25)}%`,
+                ? `${Math.max(uploadProgress * 0.2, 4)}%`
+                : `${Math.max((activeIndex + 1) * 20, 20)}%`,
           }}
         />
       </div>
       <small className="privacy-note">
-        O tempo depende da duração do arquivo enviado.
+        O tempo depende da duracao do arquivo enviado.
       </small>
     </section>
   );

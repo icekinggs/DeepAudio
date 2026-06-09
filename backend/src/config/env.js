@@ -15,6 +15,14 @@ function parsePositiveNumber(value, fallback, name) {
   return parsed;
 }
 
+function parseNonNegativeNumber(value, fallback, name) {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`${name} deve ser um numero maior ou igual a zero.`);
+  }
+  return parsed;
+}
+
 const storageValue = process.env.STORAGE_DIR || "./storage";
 
 export const config = {
@@ -33,6 +41,17 @@ export const config = {
     process.env.CLEANUP_MAX_AGE_HOURS,
     24,
     "CLEANUP_MAX_AGE_HOURS",
+  ),
+  accessToken: process.env.DEEPAUDIO_ACCESS_TOKEN || "",
+  uploadRateLimitWindowMs: parsePositiveNumber(
+    process.env.UPLOAD_RATE_LIMIT_WINDOW_MS,
+    60 * 60 * 1000,
+    "UPLOAD_RATE_LIMIT_WINDOW_MS",
+  ),
+  uploadRateLimitMax: parseNonNegativeNumber(
+    process.env.UPLOAD_RATE_LIMIT_MAX,
+    6,
+    "UPLOAD_RATE_LIMIT_MAX",
   ),
 };
 

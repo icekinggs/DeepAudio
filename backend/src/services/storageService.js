@@ -83,7 +83,7 @@ export async function getRecord(id) {
   return records.find((record) => record.id === id) || null;
 }
 
-async function listRecords() {
+export async function listRecords() {
   await writeQueue;
   return readAllUnsafe();
 }
@@ -123,7 +123,7 @@ export async function cleanupExpiredJobs(
   const activePaths = new Set(
     records
       .filter((record) =>
-        ["uploaded", "converting", "processing"].includes(record.status),
+        ["queued", "converting", "processing"].includes(record.status),
       )
       .flatMap((record) => [
         record.originalPath,
@@ -135,7 +135,7 @@ export async function cleanupExpiredJobs(
   );
   const expired = records.filter(
     (record) =>
-      !["uploaded", "converting", "processing"].includes(record.status) &&
+      !["queued", "converting", "processing"].includes(record.status) &&
       new Date(record.createdAt).getTime() < cutoff,
   );
 
@@ -163,4 +163,67 @@ export async function cleanupExpiredJobs(
   }
 
   return expired.length + orphanedFiles;
+}
+
+export async function markInterruptedJobs() {
+  return scheduleWrite(async () => {
+    const records = await readAllUnsafe();
+    let changed = 0;
+
+    const nextRecords = records.map((record) => {
+      if (!["converting", "processing", "uploaded"].includes(record.status)) {
+        return record;
+      }
+
+      changed += 1;
+      return {
+        ...record,
+        status: "failed",
+        error: "O processamento foi interrompido por reinicio do servico.",
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    if (changed > 0) {
+      await writeAllUnsafe(nextRecords);
+    }
+
+    return changed;
+  });
+}
+
+export async function getStorageSummary() {
+  const records = await listRecords();
+  const byStatus = records.reduce((summary, record) => {
+    summary[record.status] = (summary[record.status] || 0) + 1;
+    return summary;
+  }, {});
+  const folders = {};
+
+  for (const [name, folder] of Object.entries({
+    original: paths.original,
+    converted: paths.converted,
+    processed: paths.processed,
+    logs: paths.logs,
+  })) {
+    let files = 0;
+    let bytes = 0;
+    const entries = await fs.readdir(folder, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      files += 1;
+      bytes += (await fs.stat(path.join(folder, entry.name))).size;
+    }
+
+    folders[name] = { files, bytes };
+  }
+
+  return {
+    jobs: {
+      total: records.length,
+      byStatus,
+    },
+    folders,
+  };
 }

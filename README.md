@@ -25,6 +25,10 @@ Principais recursos:
 - Conversão automática para WAV PCM 16-bit, mono, 48 kHz.
 - Redução de ruído com DeepFilterNet e pós-filtro `--pf`.
 - Progresso separado para upload, conversão e processamento.
+- Fila de processamento com concorrência 1 para proteger CPU/RAM.
+- Histórico com download, remoção e limpeza manual de jobs antigos.
+- Painel admin simples com fila, storage, limites e status por job.
+- Token de acesso opcional e rate limit de upload.
 - Download protegido somente da pasta `storage/processed`.
 - Limpeza automática de jobs expirados e arquivos órfãos.
 - Logs no console e em `storage/logs/app.log`.
@@ -127,6 +131,9 @@ DEEPFILTER_COMMAND=deepFilter
 STORAGE_DIR=./storage
 CORS_ORIGIN=http://localhost:5173
 CLEANUP_MAX_AGE_HOURS=24
+UPLOAD_RATE_LIMIT_WINDOW_MS=3600000
+UPLOAD_RATE_LIMIT_MAX=6
+DEEPAUDIO_ACCESS_TOKEN=
 LOG_LEVEL=info
 
 VITE_API_URL=
@@ -135,6 +142,10 @@ VITE_MAX_FILE_SIZE_MB=200
 
 Mantenha `MAX_FILE_SIZE_MB` e `VITE_MAX_FILE_SIZE_MB` com o mesmo valor.
 Variáveis `VITE_*` são incorporadas durante o build do frontend.
+
+`DEEPAUDIO_ACCESS_TOKEN` é opcional. Quando definido, o frontend mostra um campo
+para informar o token e todas as chamadas à API passam a exigir autenticação.
+Use `UPLOAD_RATE_LIMIT_MAX=0` para desativar o rate limit de upload.
 
 ## Desenvolvimento
 
@@ -230,6 +241,7 @@ O instalador configura:
 - usuário de serviço `deepaudio`;
 - serviço systemd;
 - reverse proxy Nginx.
+- rate limit e token opcional quando configurados por variável de ambiente.
 
 Recomendação mínima:
 
@@ -252,6 +264,8 @@ sudo \
   DOMAIN=audio.exemplo.com \
   MAX_FILE_SIZE_MB=500 \
   CLEANUP_MAX_AGE_HOURS=48 \
+  UPLOAD_RATE_LIMIT_MAX=6 \
+  DEEPAUDIO_ACCESS_TOKEN='troque-este-token' \
   BUILD_JOBS=2 \
   bash scripts/install-debian13.sh
 ```
@@ -320,12 +334,14 @@ antes de iniciar pelo PM2.
 Campo multipart: `audio`.
 
 Retorna `202 Accepted` com ID do job, status inicial e URL de consulta.
+O job entra como `queued` e é processado quando chegar sua vez.
 
 ### `GET /api/audio/status/:id`
 
 Retorna um dos status:
 
 - `uploaded`
+- `queued`
 - `converting`
 - `processing`
 - `completed`
@@ -334,6 +350,22 @@ Retorna um dos status:
 ### `GET /api/audio/download/:id`
 
 Baixa o WAV processado quando o job está concluído.
+
+### `GET /api/audio/history`
+
+Lista os jobs recentes sem expor caminhos internos do servidor.
+
+### `DELETE /api/audio/:id`
+
+Remove um job finalizado ou com falha, junto com seus arquivos.
+
+### `POST /api/audio/cleanup`
+
+Remove jobs e arquivos antigos conforme `CLEANUP_MAX_AGE_HOURS`.
+
+### `GET /api/audio/admin/summary`
+
+Retorna resumo de fila, storage, contagem por status e limites configurados.
 
 ## Solução de Problemas
 
@@ -384,6 +416,9 @@ O backend já executa essa conversão automaticamente.
 - O nome original nunca é usado em caminhos de comando.
 - Extensão e MIME type são validados.
 - Tamanho de upload é limitado pelo Multer.
+- Uploads podem ser limitados por IP com rate limit em memória.
+- Acesso pode ser protegido com token opcional.
+- A fila processa um áudio por vez para reduzir risco de OOM.
 - FFmpeg e DeepFilterNet usam `spawn` com `shell: false`.
 - Downloads são limitados à pasta de arquivos processados.
 - Arquivos antigos são removidos automaticamente.

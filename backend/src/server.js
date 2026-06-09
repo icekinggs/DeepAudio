@@ -2,7 +2,11 @@ import { createApp } from "./app.js";
 import { config } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { runStartupChecks } from "./services/dependencyService.js";
-import { cleanupExpiredJobs } from "./services/storageService.js";
+import { enqueuePendingJobs } from "./services/queueService.js";
+import {
+  cleanupExpiredJobs,
+  markInterruptedJobs,
+} from "./services/storageService.js";
 
 async function start() {
   let dependencyHealth;
@@ -26,6 +30,22 @@ async function start() {
       `Backend disponível em http://localhost:${config.port}`,
     );
   });
+
+  markInterruptedJobs()
+    .then((interruptedCount) => {
+      if (interruptedCount > 0) {
+        logger.warn({ interruptedCount }, "Jobs interrompidos marcados como falha");
+      }
+      return enqueuePendingJobs();
+    })
+    .then((queuedCount) => {
+      if (queuedCount > 0) {
+        logger.info({ queuedCount }, "Jobs pendentes reenfileirados");
+      }
+    })
+    .catch((error) => {
+      logger.error({ err: error }, "Falha ao recuperar fila de processamento");
+    });
 
   cleanupExpiredJobs()
     .then((removedCount) => {

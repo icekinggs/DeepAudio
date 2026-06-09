@@ -1,13 +1,28 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
+  BarChart3,
   CheckCircle2,
   Clock3,
   FileAudio,
+  History,
   Sparkles,
+  Upload,
   WandSparkles,
 } from "lucide-react";
-import { getStatus, uploadAudio } from "./api.js";
+import {
+  cleanupJobs,
+  deleteJob,
+  getAccessToken,
+  getAdminSummary,
+  getHistory,
+  getStatus,
+  setAccessToken,
+  uploadAudio,
+} from "./api.js";
+import { AccessTokenPanel } from "./components/AccessTokenPanel.jsx";
+import { AdminPanel } from "./components/AdminPanel.jsx";
 import { Brand } from "./components/Brand.jsx";
+import { HistoryPanel } from "./components/HistoryPanel.jsx";
 import { ProgressPanel } from "./components/ProgressPanel.jsx";
 import { ResultPanel } from "./components/ResultPanel.jsx";
 import { UploadPanel } from "./components/UploadPanel.jsx";
@@ -31,7 +46,7 @@ function validateFile(file) {
   const extension = file.name.split(".").pop()?.toLowerCase();
 
   if (!allowedExtensions.has(extension)) {
-    return "Formato inválido. Selecione um arquivo de áudio compatível.";
+    return "Formato invalido. Selecione um arquivo de audio compativel.";
   }
 
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -42,11 +57,56 @@ function validateFile(file) {
 }
 
 function App() {
+  const [activeView, setActiveView] = useState("upload");
   const [selectedFile, setSelectedFile] = useState(null);
   const [processStatus, setProcessStatus] = useState("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [token, setToken] = useState(getAccessToken());
+
+  useEffect(() => {
+    setAccessToken(token);
+  }, [token]);
+
+  const withErrorMessage = useCallback(async (action) => {
+    try {
+      await action();
+    } catch (error) {
+      setMessage({ type: "error", text: error.message });
+    }
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      setHistory(await getHistory());
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const loadSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      setSummary(await getAdminSummary());
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeView === "history") {
+      withErrorMessage(loadHistory);
+    }
+    if (activeView === "admin") {
+      withErrorMessage(loadSummary);
+    }
+  }, [activeView, loadHistory, loadSummary, withErrorMessage]);
 
   function chooseFile(file) {
     setMessage(null);
@@ -73,12 +133,10 @@ function App() {
 
       if (current.status === "completed") return current;
       if (current.status === "failed") {
-        throw new Error(
-          current.error || "Não foi possível processar este áudio.",
-        );
+        throw new Error(current.error || "Nao foi possivel processar este audio.");
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, 1400));
     }
   }
 
@@ -99,6 +157,7 @@ function App() {
       const completed = await pollUntilFinished(upload.id);
       setResult(completed);
       setProcessStatus("completed");
+      await loadHistory().catch(() => {});
     } catch (error) {
       setProcessStatus("idle");
       setMessage({ type: "error", text: error.message });
@@ -113,16 +172,54 @@ function App() {
     setMessage(null);
   }
 
+  async function removeHistoryItem(id) {
+    await withErrorMessage(async () => {
+      await deleteJob(id);
+      await loadHistory();
+    });
+  }
+
+  async function cleanupHistory() {
+    await withErrorMessage(async () => {
+      const cleanup = await cleanupJobs();
+      setMessage({ type: "success", text: cleanup.message });
+      await loadHistory();
+    });
+  }
+
   const processing = !["idle", "completed"].includes(processStatus);
 
   return (
     <div className="app-shell">
       <header className="topbar">
         <Brand />
-        <span className="header-label">
-          <Sparkles size={16} />
-          IA para áudio
-        </span>
+        <nav className="nav-tabs" aria-label="Navegacao principal">
+          <button
+            className={activeView === "upload" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveView("upload")}
+          >
+            <Upload size={16} />
+            Processar
+          </button>
+          <button
+            className={activeView === "history" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveView("history")}
+          >
+            <History size={16} />
+            Historico
+          </button>
+          <button
+            className={activeView === "admin" ? "active" : ""}
+            type="button"
+            onClick={() => setActiveView("admin")}
+          >
+            <BarChart3 size={16} />
+            Admin
+          </button>
+        </nav>
+        <AccessTokenPanel token={token} onChange={setToken} />
       </header>
 
       <main>
@@ -134,96 +231,115 @@ function App() {
               aria-label="Fechar alerta"
               onClick={() => setMessage(null)}
             >
-              ×
+              x
             </button>
           </div>
         )}
 
-        <section className="hero" aria-labelledby="hero-title">
-          <div className="hero-copy">
-            <div className="hero-kicker">
-              <WandSparkles size={16} />
-              Redução inteligente de ruído
-            </div>
-            <h1 id="hero-title">
-              Áudio mais limpo, voz mais clara.
-            </h1>
-            <p>
-              Melhore gravações, entrevistas, aulas, reuniões e podcasts com
-              um fluxo simples: envie o arquivo, aguarde o processamento e
-              baixe o resultado.
-            </p>
-          </div>
+        {activeView === "upload" && (
+          <>
+            <section className="hero" aria-labelledby="hero-title">
+              <div className="hero-copy">
+                <div className="hero-kicker">
+                  <WandSparkles size={16} />
+                  Reducao inteligente de ruido
+                </div>
+                <h1 id="hero-title">Audio mais limpo, voz mais clara.</h1>
+                <p>
+                  Envie o arquivo, acompanhe a fila de processamento e baixe o
+                  resultado em WAV quando a limpeza terminar.
+                </p>
+              </div>
 
-          <div className="panel-column">
-            {result ? (
-              <ResultPanel result={result} onReset={resetProcessing} />
-            ) : processing ? (
-              <ProgressPanel
-                status={processStatus}
-                uploadProgress={uploadProgress}
-                fileName={selectedFile?.name}
-              />
-            ) : (
-              <UploadPanel
-                selectedFile={selectedFile}
-                onSelect={chooseFile}
-                onSubmit={startProcessing}
-                maxFileSizeMb={MAX_FILE_SIZE_MB}
-                disabled={processing}
-              />
-            )}
-          </div>
+              <div className="panel-column">
+                {result ? (
+                  <ResultPanel result={result} onReset={resetProcessing} />
+                ) : processing ? (
+                  <ProgressPanel
+                    status={processStatus}
+                    uploadProgress={uploadProgress}
+                    fileName={selectedFile?.name}
+                  />
+                ) : (
+                  <UploadPanel
+                    selectedFile={selectedFile}
+                    onSelect={chooseFile}
+                    onSubmit={startProcessing}
+                    maxFileSizeMb={MAX_FILE_SIZE_MB}
+                    disabled={processing}
+                  />
+                )}
+              </div>
 
-          <div className="feature-row" aria-label="Benefícios">
-            <article>
-              <Sparkles size={20} />
-              <strong>Tratamento automático</strong>
-              <span>Reduz ruídos e interferências comuns</span>
-            </article>
-            <article>
-              <Clock3 size={20} />
-              <strong>Processo simples</strong>
-              <span>Envie, acompanhe e baixe o arquivo final</span>
-            </article>
-            <article>
-              <FileAudio size={20} />
-              <strong>Formatos populares</strong>
-              <span>WAV, MP3, M4A, OGG, FLAC e outros</span>
-            </article>
-          </div>
-        </section>
+              <div className="feature-row" aria-label="Beneficios">
+                <article>
+                  <Sparkles size={20} />
+                  <strong>Fila segura</strong>
+                  <span>Processa um audio por vez para proteger o servidor</span>
+                </article>
+                <article>
+                  <Clock3 size={20} />
+                  <strong>Status claro</strong>
+                  <span>Acompanhe fila, conversao, limpeza e finalizacao</span>
+                </article>
+                <article>
+                  <FileAudio size={20} />
+                  <strong>Formatos populares</strong>
+                  <span>WAV, MP3, M4A, OGG, FLAC e outros</span>
+                </article>
+              </div>
+            </section>
 
-        <section className="how-it-works">
-          <div className="section-heading">
-            <span>Como funciona</span>
-            <h2>Do arquivo original ao áudio tratado</h2>
-          </div>
-          <div className="steps-grid">
-            <article>
-              <span className="step-number">1</span>
-              <strong>Envie o áudio</strong>
-              <p>Escolha ou arraste a gravação que você quer melhorar.</p>
-            </article>
-            <article>
-              <span className="step-number">2</span>
-              <strong>Aguarde o tratamento</strong>
-              <p>A IA analisa a gravação e reduz os ruídos identificados.</p>
-            </article>
-            <article>
-              <span className="step-number">
-                <CheckCircle2 size={20} />
-              </span>
-              <strong>Baixe o resultado</strong>
-              <p>Receba o arquivo final em WAV pronto para utilizar.</p>
-            </article>
-          </div>
-        </section>
+            <section className="how-it-works">
+              <div className="section-heading">
+                <span>Como funciona</span>
+                <h2>Do arquivo original ao audio tratado</h2>
+              </div>
+              <div className="steps-grid">
+                <article>
+                  <span className="step-number">1</span>
+                  <strong>Envie o audio</strong>
+                  <p>Escolha ou arraste a gravacao que voce quer melhorar.</p>
+                </article>
+                <article>
+                  <span className="step-number">2</span>
+                  <strong>Aguarde a fila</strong>
+                  <p>O servidor evita concorrencia pesada e processa em ordem.</p>
+                </article>
+                <article>
+                  <span className="step-number">
+                    <CheckCircle2 size={20} />
+                  </span>
+                  <strong>Baixe o resultado</strong>
+                  <p>Receba o WAV final pronto para utilizar.</p>
+                </article>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeView === "history" && (
+          <HistoryPanel
+            records={history}
+            loading={historyLoading}
+            onRefresh={() => withErrorMessage(loadHistory)}
+            onDelete={removeHistoryItem}
+            onCleanup={cleanupHistory}
+          />
+        )}
+
+        {activeView === "admin" && (
+          <AdminPanel
+            summary={summary}
+            loading={summaryLoading}
+            onRefresh={() => withErrorMessage(loadSummary)}
+          />
+        )}
       </main>
 
       <footer>
         <Brand />
-        <span>Áudios temporários são removidos automaticamente.</span>
+        <span>Audios temporarios sao removidos automaticamente.</span>
       </footer>
     </div>
   );
