@@ -2,7 +2,7 @@ import { createApp } from "./app.js";
 import { config } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { runStartupChecks } from "./services/dependencyService.js";
-import { cleanupOldRecords } from "./services/storageService.js";
+import { cleanupExpiredJobs } from "./services/storageService.js";
 
 async function start() {
   let dependencyHealth;
@@ -27,9 +27,19 @@ async function start() {
     );
   });
 
+  cleanupExpiredJobs()
+    .then((removedCount) => {
+      if (removedCount > 0) {
+        logger.info({ removedCount }, "Limpeza inicial concluída");
+      }
+    })
+    .catch((error) => {
+      logger.error({ err: error }, "Falha na limpeza inicial");
+    });
+
   const cleanupInterval = setInterval(
     () => {
-      cleanupOldRecords()
+      cleanupExpiredJobs()
         .then((removedCount) => {
           if (removedCount > 0) {
             logger.info({ removedCount }, "Limpeza automática concluída");

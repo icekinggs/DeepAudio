@@ -20,7 +20,7 @@ export function createApp(dependencyHealth) {
   app.use(
     cors({
       origin: config.corsOrigin.split(",").map((origin) => origin.trim()),
-      methods: ["GET", "POST", "DELETE"],
+      methods: ["GET", "POST"],
     }),
   );
   app.use(express.json({ limit: "64kb" }));
@@ -38,7 +38,7 @@ export function createApp(dependencyHealth) {
   app.use("/api/audio", (request, response, next) => {
     if (!dependencyHealth.storage) {
       response.status(503).json({
-        message: "O armazenamento local não está disponível.",
+        message: "O armazenamento não está disponível.",
       });
       return;
     }

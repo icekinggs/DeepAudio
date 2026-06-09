@@ -40,7 +40,7 @@ export function uploadAudio(file, onProgress) {
     });
 
     request.addEventListener("error", () => {
-      reject(new Error("Não foi possível conectar ao servidor local."));
+      reject(new Error("Não foi possível conectar ao serviço."));
     });
 
     request.send(formData);
@@ -49,25 +49,6 @@ export function uploadAudio(file, onProgress) {
 
 export async function getStatus(id) {
   const response = await fetch(`${API_BASE_URL}/api/audio/status/${id}`);
-  return parseResponse(response);
-}
-
-export async function getHistory() {
-  const response = await fetch(`${API_BASE_URL}/api/audio/history`);
-  return parseResponse(response);
-}
-
-export async function deleteProcessing(id) {
-  const response = await fetch(`${API_BASE_URL}/api/audio/${id}`, {
-    method: "DELETE",
-  });
-  return parseResponse(response);
-}
-
-export async function cleanupFiles() {
-  const response = await fetch(`${API_BASE_URL}/api/audio/cleanup`, {
-    method: "POST",
-  });
   return parseResponse(response);
 }
 

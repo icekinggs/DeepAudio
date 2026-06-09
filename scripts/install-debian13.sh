@@ -14,7 +14,6 @@ PYTHON_SHA256="${PYTHON_SHA256:-272179ddd9a2e41a0fc8e42e33dfbdca0b3711aa5abf372d
 PYTHON_PREFIX="${PYTHON_PREFIX:-/opt/python/${PYTHON_VERSION}}"
 MAX_FILE_SIZE_MB="${MAX_FILE_SIZE_MB:-200}"
 CLEANUP_MAX_AGE_HOURS="${CLEANUP_MAX_AGE_HOURS:-24}"
-HISTORY_LIMIT="${HISTORY_LIMIT:-50}"
 PORT="${PORT:-3001}"
 DOMAIN="${DOMAIN:-}"
 ENABLE_NGINX="${ENABLE_NGINX:-1}"
@@ -71,8 +70,6 @@ check_platform() {
   [[ "${CLEANUP_MAX_AGE_HOURS}" =~ ^[0-9]+$ ]] &&
     ((CLEANUP_MAX_AGE_HOURS > 0)) ||
     fatal "CLEANUP_MAX_AGE_HOURS deve ser maior que zero."
-  [[ "${HISTORY_LIMIT}" =~ ^[0-9]+$ ]] && ((HISTORY_LIMIT > 0)) ||
-    fatal "HISTORY_LIMIT deve ser maior que zero."
   [[ "${BUILD_JOBS}" =~ ^[0-9]+$ ]] && ((BUILD_JOBS > 0)) ||
     fatal "BUILD_JOBS deve ser maior que zero."
   if [[ -n "${DOMAIN}" ]] &&
@@ -98,6 +95,14 @@ stop_existing_service() {
     grep -q "^${APP_NAME}.service"; then
     log "Parando serviço existente para atualização segura"
     systemctl stop "${APP_NAME}.service" || true
+  fi
+}
+
+validate_source_tree() {
+  log "Validando consistência do código-fonte"
+
+  if grep -R "cleanupOldRecords" "${SOURCE_DIR}/backend/src" >/dev/null 2>&1; then
+    fatal "O código-fonte ainda contém cleanupOldRecords. Atualize backend/src/server.js para cleanupExpiredJobs antes do deploy."
   fi
 }
 
@@ -209,13 +214,21 @@ install_deepfilternet() {
   fi
 
   "${venv}/bin/python" -m pip install --upgrade pip
-  "${venv}/bin/pip" install "setuptools<82" wheel packaging "numpy<2"
+  "${venv}/bin/pip" install \
+    "setuptools<82" \
+    "wheel==0.44.0" \
+    "packaging==23.2" \
+    "numpy<2"
   "${venv}/bin/pip" install \
     torch==2.1.2 \
     torchaudio==2.1.2 \
     --index-url https://download.pytorch.org/whl/cpu
   "${venv}/bin/pip" install deepfilternet soundfile
 
+  chown -R root:"${APP_GROUP}" "${DEEPFILTER_DIR}"
+  chmod -R g+rX "${DEEPFILTER_DIR}"
+
+  "${venv}/bin/pip" check
   "${venv}/bin/deepFilter" --help >/dev/null
 }
 
@@ -281,6 +294,10 @@ deploy_application() {
     "${APP_DIR}/storage/processed" \
     "${APP_DIR}/storage/logs"
 
+  if [[ ! -f "${APP_DIR}/package-lock.json" ]]; then
+    warn "A cópia da aplicação não contém package-lock.json."
+  fi
+
   chown -R root:"${APP_GROUP}" "${APP_DIR}"
   chown -R "${APP_USER}:${APP_GROUP}" "${APP_DIR}/storage"
   chmod 0750 "${APP_DIR}"
@@ -307,7 +324,6 @@ DEEPFILTER_COMMAND=${DEEPFILTER_DIR}/.venv/bin/deepFilter
 STORAGE_DIR=${APP_DIR}/storage
 CORS_ORIGIN=${server_origin}
 CLEANUP_MAX_AGE_HOURS=${CLEANUP_MAX_AGE_HOURS}
-HISTORY_LIMIT=${HISTORY_LIMIT}
 LOG_LEVEL=info
 VITE_API_URL=
 VITE_MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB}
@@ -322,7 +338,17 @@ EOF
 build_application() {
   log "Instalando dependências Node.js e gerando frontend"
   pushd "${APP_DIR}" >/dev/null
-  npm ci
+
+  [[ -f package.json ]] ||
+    fatal "package.json não foi encontrado em ${APP_DIR}."
+
+  if [[ -f package-lock.json ]]; then
+    npm ci
+  else
+    warn "package-lock.json não foi encontrado; gerando um novo lockfile."
+    npm install --package-lock
+  fi
+
   npm run check
   npm prune --omit=dev
   popd >/dev/null
@@ -336,7 +362,7 @@ install_systemd_service() {
 
   cat >"/etc/systemd/system/${APP_NAME}.service" <<EOF
 [Unit]
-Description=DeepAudio local noise removal service
+Description=DeepAudio noise removal service
 After=network-online.target
 Wants=network-online.target
 
@@ -442,7 +468,7 @@ print_summary() {
   log "Instalação concluída"
   printf '%s\n' \
     "Aplicação: http://${detected_ip:-127.0.0.1}" \
-    "API local: http://127.0.0.1:${PORT}/api/health" \
+    "API: http://127.0.0.1:${PORT}/api/health" \
     "Serviço: systemctl status ${APP_NAME}" \
     "Logs: journalctl -u ${APP_NAME} -f" \
     "Arquivos: ${APP_DIR}/storage" \
@@ -456,6 +482,7 @@ print_summary() {
 main() {
   require_root
   check_platform
+  validate_source_tree
   stop_existing_service
   install_system_packages
   create_service_user

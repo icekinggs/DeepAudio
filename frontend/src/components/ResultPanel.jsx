@@ -10,8 +10,7 @@ export function ResultPanel({ result, onReset }) {
       <div className="eyebrow">Processamento concluído</div>
       <h1>Áudio limpo gerado com sucesso</h1>
       <p className="lead">
-        Seu arquivo foi convertido para WAV, processado pelo DeepFilterNet e
-        está pronto para download.
+        A redução de ruído foi concluída e seu novo arquivo está pronto.
       </p>
       <a
         className="button button--primary button--wide"

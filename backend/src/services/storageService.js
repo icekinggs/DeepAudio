@@ -35,7 +35,7 @@ async function readAllUnsafe() {
     const records = JSON.parse(content);
     return Array.isArray(records) ? records : [];
   } catch (error) {
-    logger.error({ err: error }, "Falha ao ler histórico; usando lista vazia");
+    logger.error({ err: error }, "Falha ao ler registros; usando lista vazia");
     return [];
   }
 }
@@ -56,7 +56,7 @@ export async function createRecord(record) {
   return scheduleWrite(async () => {
     const records = await readAllUnsafe();
     records.unshift(record);
-    await writeAllUnsafe(records.slice(0, config.historyLimit));
+    await writeAllUnsafe(records);
     return record;
   });
 }
@@ -83,7 +83,7 @@ export async function getRecord(id) {
   return records.find((record) => record.id === id) || null;
 }
 
-export async function listRecords() {
+async function listRecords() {
   await writeQueue;
   return readAllUnsafe();
 }
@@ -115,9 +115,24 @@ export async function removeFilesForRecord(record) {
   await fs.rm(workDirectory, { recursive: true, force: true });
 }
 
-export async function cleanupOldRecords(maxAgeHours = config.cleanupMaxAgeHours) {
+export async function cleanupExpiredJobs(
+  maxAgeHours = config.cleanupMaxAgeHours,
+) {
   const cutoff = Date.now() - maxAgeHours * 60 * 60 * 1000;
   const records = await listRecords();
+  const activePaths = new Set(
+    records
+      .filter((record) =>
+        ["uploaded", "converting", "processing"].includes(record.status),
+      )
+      .flatMap((record) => [
+        record.originalPath,
+        record.convertedPath,
+        record.processedPath,
+      ])
+      .filter(Boolean)
+      .map((filePath) => path.resolve(filePath)),
+  );
   const expired = records.filter(
     (record) =>
       !["uploaded", "converting", "processing"].includes(record.status) &&
@@ -129,5 +144,23 @@ export async function cleanupOldRecords(maxAgeHours = config.cleanupMaxAgeHours)
     await removeRecord(record.id);
   }
 
-  return expired.length;
+  let orphanedFiles = 0;
+  for (const folder of [paths.original, paths.converted, paths.processed]) {
+    const entries = await fs.readdir(folder, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+
+      const filePath = path.resolve(folder, entry.name);
+      if (activePaths.has(filePath)) continue;
+
+      const stats = await fs.stat(filePath);
+      if (stats.mtimeMs >= cutoff) continue;
+
+      await fs.rm(filePath, { force: true });
+      orphanedFiles += 1;
+    }
+  }
+
+  return expired.length + orphanedFiles;
 }

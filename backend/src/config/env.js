@@ -34,11 +34,6 @@ export const config = {
     24,
     "CLEANUP_MAX_AGE_HOURS",
   ),
-  historyLimit: parsePositiveNumber(
-    process.env.HISTORY_LIMIT,
-    50,
-    "HISTORY_LIMIT",
-  ),
 };
 
 export const paths = {
@@ -46,5 +41,5 @@ export const paths = {
   converted: path.join(config.storageDir, "converted"),
   processed: path.join(config.storageDir, "processed"),
   logs: path.join(config.storageDir, "logs"),
-  metadata: path.join(config.storageDir, "history.json"),
+  metadata: path.join(config.storageDir, "jobs.json"),
 };

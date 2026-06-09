@@ -1,8 +1,6 @@
 # DeepAudio
 
-Aplicação web completa para remover ruído de áudios com **DeepFilterNet executado localmente**. O frontend React envia o arquivo ao backend Express, que converte o áudio com FFmpeg, processa com DeepFilterNet usando `--pf` e disponibiliza o WAV limpo para download.
-
-Nenhum serviço externo é necessário durante o uso.
+Aplicação web completa para remover ruído de áudios com inteligência artificial. O frontend React envia o arquivo ao backend Express, que converte o áudio com FFmpeg, processa com DeepFilterNet usando `--pf` e disponibiliza o WAV limpo para download.
 
 ## Funcionalidades
 
@@ -14,8 +12,7 @@ Nenhum serviço externo é necessário durante o uso.
 - DeepFilterNet com pós-filtro `--pf`.
 - Progresso separado para upload, conversão e limpeza.
 - Download seguro somente da pasta processada.
-- Histórico persistido dos processamentos recentes.
-- Remoção individual e limpeza de arquivos antigos.
+- Limpeza automática de arquivos antigos.
 - Logs no console e em `storage/logs/app.log`.
 - Verificação de FFmpeg, DeepFilterNet, storage e limite no startup.
 - Interface responsiva em português brasileiro.
@@ -213,7 +210,6 @@ DEEPFILTER_COMMAND=deepFilter
 STORAGE_DIR=./storage
 CORS_ORIGIN=http://localhost:5173
 CLEANUP_MAX_AGE_HOURS=24
-HISTORY_LIMIT=50
 LOG_LEVEL=info
 VITE_API_URL=
 VITE_MAX_FILE_SIZE_MB=200
@@ -271,18 +267,6 @@ Retorna `uploaded`, `converting`, `processing`, `completed` ou `failed`.
 ### `GET /api/audio/download/:id`
 
 Baixa o WAV processado usando `res.download`.
-
-### `GET /api/audio/history`
-
-Lista os processamentos recentes sem expor caminhos absolutos.
-
-### `DELETE /api/audio/:id`
-
-Remove original, convertido, processado e registro de histórico.
-
-### `POST /api/audio/cleanup`
-
-Remove registros e arquivos com idade superior a `CLEANUP_MAX_AGE_HOURS`.
 
 ## PM2 no Windows ou Linux
 
@@ -425,6 +409,64 @@ sudo bash scripts/install-debian13.sh
 O instalador verifica se está realmente no Debian 13, exige arquitetura amd64,
 valida o SHA-256 do código-fonte do Python e encerra com diagnóstico se o
 DeepFilterNet não produzir um áudio de teste.
+
+#### Correção de `deepFilter: Permission denied`
+
+Versões iniciais do instalador podiam criar o virtualenv com permissão somente
+para `root`, devido ao `umask 027`. O script atual corrige proprietário e
+permissões antes de executar o teste como usuário `deepaudio`.
+
+Atualize o projeto e execute novamente:
+
+```bash
+cd /caminho/do/projeto/DeepAudio
+sudo bash scripts/install-debian13.sh
+```
+
+Se precisar liberar a instalação existente antes de atualizar o projeto:
+
+```bash
+sudo chown -R root:deepaudio /opt/deepfilternet
+sudo chmod -R g+rX /opt/deepfilternet
+sudo -u deepaudio \
+  HOME=/var/lib/deepaudio \
+  XDG_CACHE_HOME=/var/lib/deepaudio/.cache \
+  /opt/deepfilternet/.venv/bin/deepFilter --help
+```
+
+O aviso de dependência `wheel 0.47.0 requires packaging>=24.0` também foi
+eliminado. O instalador fixa `wheel==0.44.0` e `packaging==23.2`, combinação
+compatível com o DeepFilterNet 0.5.6, e executa `pip check` antes de prosseguir.
+
+#### Correção de `npm ci` sem `package-lock.json`
+
+O instalador atual usa `npm ci` quando `package-lock.json` está presente. Se o
+projeto tiver sido copiado para o CT sem esse arquivo, ele executa
+automaticamente `npm install --package-lock`, gera o lockfile e continua.
+
+Depois de atualizar `scripts/install-debian13.sh`, retome normalmente:
+
+```bash
+cd /caminho/do/projeto/DeepAudio
+sudo bash scripts/install-debian13.sh
+```
+
+Para continuar imediatamente sem atualizar o script:
+
+```bash
+cd /opt/deepaudio
+sudo npm install --package-lock
+sudo npm run check
+sudo npm prune --omit=dev
+```
+
+Em seguida, execute novamente o instalador para criar o serviço systemd e
+configurar o Nginx:
+
+```bash
+cd /caminho/do/projeto/DeepAudio
+sudo bash scripts/install-debian13.sh
+```
 
 ### Pacotes do sistema
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { FileAudio, ShieldCheck, UploadCloud, X } from "lucide-react";
+import { FileAudio, Sparkles, UploadCloud, X } from "lucide-react";
 
 const allowedExtensions = [
   ".wav",
@@ -42,13 +42,12 @@ export function UploadPanel({
   return (
     <section className="upload-card">
       <div className="eyebrow">
-        <ShieldCheck size={16} />
-        Processamento 100% local
+        <Sparkles size={16} />
+        Redução inteligente de ruído
       </div>
       <h1>Envie seu áudio</h1>
       <p className="lead">
-        Remova ruídos, chiados e sons de fundo com inteligência artificial,
-        sem enviar seus arquivos para serviços externos.
+        Selecione uma gravação para reduzir ruídos, chiados e sons de fundo.
       </p>
 
       <div
@@ -113,7 +112,7 @@ export function UploadPanel({
         onClick={onSubmit}
         disabled={!selectedFile || disabled}
       >
-        Remover ruído do áudio
+        Melhorar meu áudio
       </button>
     </section>
   );

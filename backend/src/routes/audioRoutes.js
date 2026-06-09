@@ -7,12 +7,8 @@ import { logger } from "../config/logger.js";
 import { uploadAudio } from "../middleware/upload.js";
 import { processAudio } from "../services/audioProcessor.js";
 import {
-  cleanupOldRecords,
   createRecord,
   getRecord,
-  listRecords,
-  removeFilesForRecord,
-  removeRecord,
 } from "../services/storageService.js";
 
 export const audioRouter = express.Router();
@@ -124,53 +120,6 @@ audioRouter.get("/download/:id", async (request, response, next) => {
       response.status(404).json({ message: "Áudio processado não encontrado." });
       return;
     }
-    next(error);
-  }
-});
-
-audioRouter.get("/history", async (_request, response, next) => {
-  try {
-    const records = await listRecords();
-    response.json(records.map(publicRecord));
-  } catch (error) {
-    next(error);
-  }
-});
-
-audioRouter.delete("/:id", async (request, response, next) => {
-  try {
-    const record = await getRecord(request.params.id);
-    if (!record) {
-      response.status(404).json({ message: "Processamento não encontrado." });
-      return;
-    }
-
-    if (["uploaded", "converting", "processing"].includes(record.status)) {
-      response.status(409).json({
-        message: "Aguarde o processamento terminar antes de apagar.",
-      });
-      return;
-    }
-
-    await removeFilesForRecord(record);
-    await removeRecord(record.id);
-    logger.info({ processingId: record.id }, "Processamento removido");
-    response.status(204).end();
-  } catch (error) {
-    next(error);
-  }
-});
-
-audioRouter.post("/cleanup", async (_request, response, next) => {
-  try {
-    const removedCount = await cleanupOldRecords();
-    logger.info({ removedCount }, "Limpeza manual concluída");
-    response.json({
-      message: `${removedCount} processamento(s) antigo(s) removido(s).`,
-      removedCount,
-      maxAgeHours: config.cleanupMaxAgeHours,
-    });
-  } catch (error) {
     next(error);
   }
 });

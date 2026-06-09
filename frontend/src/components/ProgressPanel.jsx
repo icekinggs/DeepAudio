@@ -1,25 +1,16 @@
-import {
-  Check,
-  Circle,
-  LoaderCircle,
-  Sparkles,
-  Upload,
-  Waves,
-} from "lucide-react";
+import { Check, Circle, LoaderCircle, Waves } from "lucide-react";
 
 const steps = [
-  { key: "uploading", label: "Enviando áudio", icon: Upload },
+  { key: "uploading", label: "Enviando áudio" },
   {
     key: "converting",
     label: "Convertendo para formato compatível",
-    icon: Waves,
   },
   {
     key: "processing",
-    label: "Removendo ruído com IA local",
-    icon: Sparkles,
+    label: "Removendo ruído com inteligência artificial",
   },
-  { key: "completed", label: "Finalizado", icon: Check },
+  { key: "completed", label: "Finalizado" },
 ];
 
 const statusOrder = {
@@ -45,7 +36,6 @@ export function ProgressPanel({ status, uploadProgress, fileName }) {
 
       <div className="steps">
         {steps.map((step, index) => {
-          const Icon = step.icon;
           const isComplete = index < activeIndex || status === "completed";
           const isActive = index === activeIndex && status !== "completed";
 
@@ -87,7 +77,7 @@ export function ProgressPanel({ status, uploadProgress, fileName }) {
         />
       </div>
       <small className="privacy-note">
-        O tempo depende da duração do áudio e do seu computador.
+        O tempo depende da duração do arquivo enviado.
       </small>
     </section>
   );
