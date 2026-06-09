@@ -13,7 +13,6 @@ PYTHON_VERSION="${PYTHON_VERSION:-3.11.15}"
 PYTHON_SHA256="${PYTHON_SHA256:-272179ddd9a2e41a0fc8e42e33dfbdca0b3711aa5abf372d3f2d51543d09b625}"
 PYTHON_PREFIX="${PYTHON_PREFIX:-/opt/python/${PYTHON_VERSION}}"
 MAX_FILE_SIZE_MB="${MAX_FILE_SIZE_MB:-200}"
-MAX_AUDIO_DURATION_SECONDS="${MAX_AUDIO_DURATION_SECONDS:-900}"
 CLEANUP_MAX_AGE_HOURS="${CLEANUP_MAX_AGE_HOURS:-24}"
 PORT="${PORT:-3001}"
 DOMAIN="${DOMAIN:-}"
@@ -68,9 +67,6 @@ check_platform() {
     fatal "PORT deve estar entre 1 e 65535."
   [[ "${MAX_FILE_SIZE_MB}" =~ ^[0-9]+$ ]] && ((MAX_FILE_SIZE_MB > 0)) ||
     fatal "MAX_FILE_SIZE_MB deve ser um número maior que zero."
-  [[ "${MAX_AUDIO_DURATION_SECONDS}" =~ ^[0-9]+$ ]] &&
-    ((MAX_AUDIO_DURATION_SECONDS > 0)) ||
-    fatal "MAX_AUDIO_DURATION_SECONDS deve ser maior que zero."
   [[ "${CLEANUP_MAX_AGE_HOURS}" =~ ^[0-9]+$ ]] &&
     ((CLEANUP_MAX_AGE_HOURS > 0)) ||
     fatal "CLEANUP_MAX_AGE_HOURS deve ser maior que zero."
@@ -323,9 +319,7 @@ write_environment() {
 NODE_ENV=production
 PORT=${PORT}
 MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB}
-MAX_AUDIO_DURATION_SECONDS=${MAX_AUDIO_DURATION_SECONDS}
 FFMPEG_PATH=/usr/bin/ffmpeg
-FFPROBE_PATH=/usr/bin/ffprobe
 DEEPFILTER_COMMAND=${DEEPFILTER_DIR}/.venv/bin/deepFilter
 STORAGE_DIR=${APP_DIR}/storage
 CORS_ORIGIN=${server_origin}

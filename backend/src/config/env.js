@@ -15,16 +15,6 @@ function parsePositiveNumber(value, fallback, name) {
   return parsed;
 }
 
-function parseOptionalPositiveNumber(value, name) {
-  if (value === undefined || value === null || value === "") return null;
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`${name} deve ser um numero maior que zero.`);
-  }
-  return parsed;
-}
-
 const storageValue = process.env.STORAGE_DIR || "./storage";
 
 export const config = {
@@ -36,7 +26,6 @@ export const config = {
     "MAX_FILE_SIZE_MB",
   ),
   ffmpegPath: process.env.FFMPEG_PATH || "ffmpeg",
-  ffprobePath: process.env.FFPROBE_PATH || "ffprobe",
   deepFilterCommand: process.env.DEEPFILTER_COMMAND || "deepFilter",
   storageDir: path.resolve(projectRoot, storageValue),
   corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
@@ -44,10 +33,6 @@ export const config = {
     process.env.CLEANUP_MAX_AGE_HOURS,
     24,
     "CLEANUP_MAX_AGE_HOURS",
-  ),
-  maxAudioDurationSeconds: parseOptionalPositiveNumber(
-    process.env.MAX_AUDIO_DURATION_SECONDS,
-    "MAX_AUDIO_DURATION_SECONDS",
   ),
 };
 

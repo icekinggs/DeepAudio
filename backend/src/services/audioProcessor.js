@@ -8,45 +8,6 @@ import {
   updateRecord,
 } from "./storageService.js";
 
-class PublicProcessingError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "PublicProcessingError";
-    this.publicMessage = message;
-  }
-}
-
-async function getAudioDurationSeconds(inputPath) {
-  const result = await runProcess(config.ffprobePath, [
-    "-v",
-    "error",
-    "-show_entries",
-    "format=duration",
-    "-of",
-    "default=noprint_wrappers=1:nokey=1",
-    inputPath,
-  ]);
-  const duration = Number(result.stdout.trim());
-
-  if (!Number.isFinite(duration) || duration <= 0) {
-    throw new Error("Nao foi possivel identificar a duracao do audio.");
-  }
-
-  return duration;
-}
-
-async function assertAudioDurationAllowed(inputPath) {
-  if (!config.maxAudioDurationSeconds) return;
-
-  const duration = await getAudioDurationSeconds(inputPath);
-  if (duration <= config.maxAudioDurationSeconds) return;
-
-  const limitMinutes = Math.floor(config.maxAudioDurationSeconds / 60);
-  throw new PublicProcessingError(
-    `Este audio tem duracao maior que o limite de ${limitMinutes} minutos.`,
-  );
-}
-
 async function convertToCompatibleWav(inputPath, outputPath) {
   await runProcess(config.ffmpegPath, [
     "-y",
@@ -127,8 +88,6 @@ export async function processAudio(record) {
   const processedPath = path.join(paths.processed, `${record.id}.wav`);
 
   try {
-    await assertAudioDurationAllowed(record.originalPath);
-
     await updateRecord(record.id, {
       status: "converting",
       convertedPath,
@@ -161,8 +120,7 @@ export async function processAudio(record) {
     );
     await updateRecord(record.id, {
       status: "failed",
-      error:
-        error.publicMessage || "Nao foi possivel processar este audio.",
+      error: "Nao foi possivel processar este audio.",
     });
     await removeFilesForRecord({
       ...record,

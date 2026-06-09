@@ -20,7 +20,7 @@ Principais recursos:
 
 - Upload por seleção de arquivo ou drag-and-drop.
 - Suporte a WAV, MP3, M4A, OGG, FLAC, AAC, WMA, WebM e MP4.
-- Validação de extensão, MIME type, tamanho e duração máxima.
+- Validação de extensão, MIME type e tamanho.
 - Nome de arquivo seguro gerado por UUID.
 - Conversão automática para WAV PCM 16-bit, mono, 48 kHz.
 - Redução de ruído com DeepFilterNet e pós-filtro `--pf`.
@@ -36,7 +36,7 @@ Principais recursos:
 | --- | --- |
 | Frontend | React 19, Vite, lucide-react |
 | Backend | Node.js, Express 5, Multer, Pino |
-| Processamento | FFmpeg, FFprobe, DeepFilterNet |
+| Processamento | FFmpeg, DeepFilterNet |
 | Deploy | systemd, Nginx, PM2 opcional |
 | Storage | Arquivos locais e `storage/jobs.json` |
 
@@ -80,21 +80,20 @@ DeepAudio/
 1. `POST /api/audio/upload` valida o arquivo e salva em
    `storage/original/<uuid>.<ext>`.
 2. O backend responde `202 Accepted` e inicia o processamento em background.
-3. `ffprobe` mede a duração quando `MAX_AUDIO_DURATION_SECONDS` está definido.
-4. FFmpeg converte o áudio:
+3. FFmpeg converte o áudio:
 
    ```bash
    ffmpeg -i "entrada" -ar 48000 -ac 1 -c:a pcm_s16le "audio_48k_pcm.wav"
    ```
 
-5. DeepFilterNet reduz o ruído:
+4. DeepFilterNet reduz o ruído:
 
    ```bash
    deepFilter "audio_48k_pcm.wav" --pf --output-dir "saida"
    ```
 
-6. O WAV final é movido para `storage/processed/<uuid>.wav`.
-7. O frontend consulta `GET /api/audio/status/:id` até finalizar.
+5. O WAV final é movido para `storage/processed/<uuid>.wav`.
+6. O frontend consulta `GET /api/audio/status/:id` até finalizar.
 
 Os comandos usam `spawn`, `shell: false` e arrays de argumentos. O código não
 concatena nomes de arquivos enviados pelo usuário em comandos de shell.
@@ -104,7 +103,7 @@ concatena nomes de arquivos enviados pelo usuário em comandos de shell.
 - Node.js 20 LTS ou superior.
 - npm 10 ou superior.
 - Python 3.11.
-- FFmpeg e FFprobe.
+- FFmpeg.
 - DeepFilterNet.
 - Git.
 - Rust/Cargo.
@@ -124,12 +123,10 @@ Configuração padrão:
 PORT=3001
 MAX_FILE_SIZE_MB=200
 FFMPEG_PATH=ffmpeg
-FFPROBE_PATH=ffprobe
 DEEPFILTER_COMMAND=deepFilter
 STORAGE_DIR=./storage
 CORS_ORIGIN=http://localhost:5173
 CLEANUP_MAX_AGE_HOURS=24
-MAX_AUDIO_DURATION_SECONDS=900
 LOG_LEVEL=info
 
 VITE_API_URL=
@@ -254,7 +251,6 @@ Opções úteis:
 sudo \
   DOMAIN=audio.exemplo.com \
   MAX_FILE_SIZE_MB=500 \
-  MAX_AUDIO_DURATION_SECONDS=900 \
   CLEANUP_MAX_AGE_HOURS=48 \
   BUILD_JOBS=2 \
   bash scripts/install-debian13.sh
@@ -350,8 +346,8 @@ journalctl -u deepaudio -n 120 --no-pager
 dmesg -T | grep -i -E 'killed process|out of memory|oom'
 ```
 
-Se o DeepFilterNet passar da memória disponível, reduza
-`MAX_AUDIO_DURATION_SECONDS`, adicione RAM ou configure swap.
+Se o DeepFilterNet passar da memória disponível, adicione RAM, configure swap
+ou processe arquivos menores.
 
 ### `deepFilter: Permission denied`
 
@@ -388,8 +384,7 @@ O backend já executa essa conversão automaticamente.
 - O nome original nunca é usado em caminhos de comando.
 - Extensão e MIME type são validados.
 - Tamanho de upload é limitado pelo Multer.
-- Limite opcional de duração protege servidores pequenos contra OOM.
-- FFmpeg, FFprobe e DeepFilterNet usam `spawn` com `shell: false`.
+- FFmpeg e DeepFilterNet usam `spawn` com `shell: false`.
 - Downloads são limitados à pasta de arquivos processados.
 - Arquivos antigos são removidos automaticamente.
 
