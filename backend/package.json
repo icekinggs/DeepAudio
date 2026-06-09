@@ -1,0 +1,20 @@
+{
+  "name": "deepaudio-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/routes/audioRoutes.js && node --check src/services/audioProcessor.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.0",
+    "pino": "^9.7.0",
+    "pino-http": "^10.4.0",
+    "uuid": "^11.1.0"
+  }
+}
