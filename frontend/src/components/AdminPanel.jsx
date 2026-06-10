@@ -7,6 +7,11 @@ function formatBytes(bytes) {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+function folderPercent(folders, bytes) {
+  const max = Math.max(...Object.values(folders).map((folder) => folder.bytes), 1);
+  return Math.max((bytes / max) * 100, bytes > 0 ? 4 : 0);
+}
+
 export function AdminPanel({ summary, loading, onRefresh }) {
   const byStatus = summary?.storage?.jobs?.byStatus || {};
   const folders = summary?.storage?.folders || {};
@@ -60,6 +65,9 @@ export function AdminPanel({ summary, loading, onRefresh }) {
             <article key={name}>
               <span>{name}</span>
               <strong>{formatBytes(info.bytes)}</strong>
+              <div className="storage-meter" aria-hidden="true">
+                <i style={{ width: `${folderPercent(folders, info.bytes)}%` }} />
+              </div>
               <small>{info.files} arquivo(s)</small>
             </article>
           ))}

@@ -10,7 +10,7 @@ export function ResultPanel({ result, onReset }) {
       <div className="eyebrow">Processamento concluído</div>
       <h1>Áudio limpo gerado com sucesso</h1>
       <p className="lead">
-        A redução de ruído foi concluída e seu novo arquivo está pronto.
+        A redução de ruído terminou e o novo arquivo está pronto para download.
       </p>
       <a
         className="button button--primary button--wide"

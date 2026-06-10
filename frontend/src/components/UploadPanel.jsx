@@ -47,7 +47,8 @@ export function UploadPanel({
       </div>
       <h1>Envie seu áudio</h1>
       <p className="lead">
-        Selecione uma gravação para reduzir ruídos, chiados e sons de fundo.
+        Arquivos longos entram na fila e são processados em ordem para proteger
+        o servidor.
       </p>
 
       <div
@@ -80,9 +81,7 @@ export function UploadPanel({
         >
           Selecionar áudio
         </button>
-        <small>
-          WAV, MP3, M4A, OGG, FLAC e outros · até {maxFileSizeMb} MB
-        </small>
+        <small>WAV, MP3, M4A, OGG, FLAC e outros · até {maxFileSizeMb} MB</small>
       </div>
 
       {selectedFile && (
@@ -112,7 +111,7 @@ export function UploadPanel({
         onClick={onSubmit}
         disabled={!selectedFile || disabled}
       >
-        Melhorar meu áudio
+        Melhorar áudio
       </button>
     </section>
   );

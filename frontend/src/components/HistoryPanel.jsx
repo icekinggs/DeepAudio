@@ -14,6 +14,16 @@ function formatBytes(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function formatDate(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export function HistoryPanel({
   records,
   loading,
@@ -52,6 +62,7 @@ export function HistoryPanel({
                 <span>
                   {formatBytes(record.inputSize)}
                   {record.outputSize ? ` -> ${formatBytes(record.outputSize)}` : ""}
+                  {record.createdAt ? ` · ${formatDate(record.createdAt)}` : ""}
                 </span>
               </div>
               <span className={`status-pill status-pill--${record.status}`}>
